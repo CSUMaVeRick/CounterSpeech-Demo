@@ -1,0 +1,252 @@
+{
+  "schema_version": "0.1",
+  "experiment_id": "counter_speech_pilot",
+  "config_version": "weibo-demo-002-avatars1-admin2",
+  "environment": {
+    "theme": "weibo",
+    "enabled_actions": [
+      "like",
+      "comment",
+      "reply"
+    ],
+    "max_comment_characters": 500,
+    "exposure": {
+      "minimum_visible_fraction": 0.5,
+      "continuous_visible_ms": 2000,
+      "require_foreground": true
+    },
+    "completion_path": "/complete"
+  },
+  "stimuli": {
+    "authors": [
+      {
+        "id": "u01",
+        "display_name": "城市日常",
+        "avatar": "assets/avatars/city-192.jpg",
+        "verified": true,
+        "verified_text": "生活博主（模拟）",
+        "bio": "记录街头巷尾的小事。",
+        "location": "上海",
+        "followers": 2386,
+        "following": 165
+      },
+      {
+        "id": "u02",
+        "display_name": "路边观察",
+        "avatar": "assets/avatars/cat-192.jpg",
+        "verified": false,
+        "verified_text": "",
+        "bio": "",
+        "location": "江苏",
+        "followers": 83,
+        "following": 219
+      },
+      {
+        "id": "u03",
+        "display_name": "慢慢说",
+        "avatar": "assets/avatars/dog-192.jpg",
+        "verified": false,
+        "verified_text": "",
+        "bio": "有空就来看看。",
+        "location": "浙江",
+        "followers": 126,
+        "following": 307
+      },
+      {
+        "id": "u04",
+        "display_name": "普通路人",
+        "avatar": "assets/avatars/mountain-192.jpg",
+        "verified": false,
+        "verified_text": "",
+        "bio": "",
+        "location": "上海",
+        "followers": 42,
+        "following": 98
+      },
+      {
+        "id": "u05",
+        "display_name": "一起生活",
+        "avatar": "assets/avatars/plant-192.jpg",
+        "verified": false,
+        "verified_text": "",
+        "bio": "分享日常，偶尔聊天。",
+        "location": "广东",
+        "followers": 351,
+        "following": 186
+      }
+    ],
+    "posts": [
+      {
+        "id": "p01",
+        "author_id": "u01",
+        "text": "最近附近多了些来工作和旅游的外国人，街区也有了一些新变化。大家怎么看？",
+        "display_time": "今天 10:30",
+        "source": "微博网页版",
+        "initial_likes": 128,
+        "media": [
+          {
+            "src": "assets/shanghai-street.jpg",
+            "alt": "上海街边的梧桐树和停放的共享单车"
+          }
+        ],
+        "age_minutes": 60
+      }
+    ],
+    "comments": [
+      {
+        "id": "c01",
+        "post_id": "p01",
+        "author_id": "u02",
+        "text": "我不太赞成更多外国人搬来这里，总觉得会带来麻烦。",
+        "initial_likes": 36,
+        "research_role": "exclusionary_placeholder",
+        "relative_time_minutes": 2
+      },
+      {
+        "id": "c02",
+        "post_id": "p01",
+        "author_id": "u04",
+        "text": "你说的麻烦具体是什么？",
+        "initial_likes": 8,
+        "research_role": "neutral",
+        "relative_time_minutes": 4
+      },
+      {
+        "id": "c03",
+        "post_id": "p01",
+        "author_id": "u02",
+        "text": "主要还是不熟悉，担心生活习惯合不来。",
+        "initial_likes": 12,
+        "research_role": "concern",
+        "relative_time_minutes": 6
+      },
+      {
+        "id": "c04",
+        "post_id": "p01",
+        "author_id": "u03",
+        "text": "生活习惯不同的情况可以具体讨论。",
+        "initial_likes": 5,
+        "research_role": "neutral",
+        "relative_time_minutes": 8
+      },
+      {
+        "id": "c05",
+        "post_id": "p01",
+        "author_id": "u04",
+        "text": "附近确实新开了几家店。",
+        "initial_likes": 9,
+        "research_role": "neutral",
+        "relative_time_minutes": 10
+      },
+      {
+        "id": "c06",
+        "post_id": "p01",
+        "author_id": "u02",
+        "text": "我还是觉得应该少让外国人来，省得出现问题。",
+        "initial_likes": 24,
+        "research_role": "exclusionary_placeholder",
+        "relative_time_minutes": 12
+      },
+      {
+        "id": "c07",
+        "post_id": "p01",
+        "author_id": "u05",
+        "text": "担心社区变化可以理解，但仅凭外国人身份就排斥所有人，对认真工作和遵守规则的人并不公平。遇到具体问题，按同样的规则处理会更合适。",
+        "initial_likes": 18,
+        "research_role": "counter_speech",
+        "relative_time_minutes": 14
+      },
+      {
+        "id": "c08",
+        "post_id": "p01",
+        "author_id": "u03",
+        "text": "可以先说清楚大家遇到了哪些具体情况。",
+        "initial_likes": 6,
+        "research_role": "neutral",
+        "relative_time_minutes": 16
+      },
+      {
+        "id": "c09",
+        "post_id": "p01",
+        "author_id": "u04",
+        "text": "想看看住在附近的人怎么说。",
+        "initial_likes": 4,
+        "research_role": "neutral",
+        "relative_time_minutes": 18
+      },
+      {
+        "id": "c10",
+        "post_id": "p01",
+        "author_id": "u03",
+        "text": "社区信息如果能更清楚一些就好了。",
+        "initial_likes": 7,
+        "research_role": "neutral",
+        "relative_time_minutes": 20
+      }
+    ],
+    "material_status": "所有文本仅用于讨论界面和树结构，未经正式刺激材料预测试。"
+  },
+  "conditions": [
+    {
+      "id": "baseline",
+      "post_order": [
+        "p01"
+      ],
+      "comment_layout": [
+        {
+          "comment_id": "c01",
+          "parent_id": null,
+          "sibling_order": 1
+        },
+        {
+          "comment_id": "c02",
+          "parent_id": "c01",
+          "sibling_order": 1
+        },
+        {
+          "comment_id": "c03",
+          "parent_id": "c01",
+          "sibling_order": 2
+        },
+        {
+          "comment_id": "c04",
+          "parent_id": "c03",
+          "sibling_order": 1
+        },
+        {
+          "comment_id": "c05",
+          "parent_id": null,
+          "sibling_order": 2
+        },
+        {
+          "comment_id": "c06",
+          "parent_id": null,
+          "sibling_order": 3
+        },
+        {
+          "comment_id": "c07",
+          "parent_id": "c06",
+          "sibling_order": 1
+        },
+        {
+          "comment_id": "c08",
+          "parent_id": "c06",
+          "sibling_order": 2
+        },
+        {
+          "comment_id": "c09",
+          "parent_id": null,
+          "sibling_order": 4
+        },
+        {
+          "comment_id": "c10",
+          "parent_id": null,
+          "sibling_order": 5
+        }
+      ],
+      "required_exposure_comment_ids": [
+        "c07"
+      ]
+    }
+  ]
+}

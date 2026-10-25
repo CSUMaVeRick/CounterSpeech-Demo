@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+data/
+.streamlit/secrets.toml
+.playwright-mcp/
+.uv-cache/
+.tools/
+dist/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+.env
+.env.*
+!.env.example
