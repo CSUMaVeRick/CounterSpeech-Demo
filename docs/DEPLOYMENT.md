@@ -1,6 +1,27 @@
 # Git + uv 部署
 
-当前以单实例 Linux 服务器为例。先将本项目推送到自己的仓库，再在服务器克隆；下方占位地址需要替换为实际仓库。
+Windows Server 可按下节使用 Git bundle；后续章节以单实例 Linux 服务器为例。
+
+## Windows Server：通过 bundle 更新
+
+无需 Nginx、Caddy 或宝塔即可直接运行。0.1.1 修复了公网 HTTP 下 `crypto.randomUUID is not a function` 的启动错误；HTTP 仍不提供传输加密，正式回收应配置 HTTPS。
+
+先在运行 Streamlit 的终端按 Ctrl+C 停服，把新 bundle 上传到服务器。在已有项目目录运行以下 PowerShell 命令，将 bundle 路径改为实际位置：
+
+```powershell
+git fetch C:\deploy\CounterSpeech-v0.1.1.bundle main
+git merge --ff-only FETCH_HEAD
+uv sync --frozen
+uv run --frozen streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+```
+
+然后刷新原来的 IP 地址页面。合作者演示可将 `app.py` 换成 `demo.py`。更新不包含数据库或本地管理草稿，也不会清空已有回收记录。如果 Git 提示本地修改冲突，先保留修改，不要使用强制重置。
+
+新安装时先安装 Git 和 uv，再运行 `git clone C:\deploy\CounterSpeech-v0.1.1.bundle CounterSpeech`、`cd CounterSpeech`，接着执行上面的 `uv sync` 和启动命令。云安全组及 Windows 防火墙需允许选定端口。终端前台运行适合验证；正式持续运行需另设 Windows 服务或任务计划。
+
+启用 HTTPS 需要证书和 TLS 服务入口，Streamlit 本身也有证书配置选项。反向代理是常见方案，但不是唯一方式。没有域名也可以申请公网 IP 证书；Let's Encrypt 的 IP 证书有效期约六天，必须安排自动续期。自签证书会触发浏览器信任警告，不适合直接向被试分发。
+
+参考：[Let's Encrypt IP 证书](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability)、[Streamlit 配置](https://docs.streamlit.io/develop/api-reference/configuration/config.toml)。
 
 ## 1. 安装与重建环境
 
@@ -24,7 +45,7 @@ uv run --frozen streamlit run demo.py --server.address 127.0.0.1 --server.port 8
 
 在 HTTPS 反向代理中把演示域名转发至 127.0.0.1:8502，允许 WebSocket 升级并保留 query string。可分享条件选择首页，或添加 `?condition=local_province` / `?condition=other_province` 的固定条件链接。
 
-通过 SSH 临时试用也可将远端 8502 转发到本机：`ssh -L 8502:127.0.0.1:8502 <服务器>`。此时本机用 localhost 访问；正式公网访问使用 HTTPS，前端会用到安全上下文中的浏览器 API。
+通过 SSH 临时试用也可将远端 8502 转发到本机：`ssh -L 8502:127.0.0.1:8502 <服务器>`。此时本机用 localhost 访问；正式公网访问使用 HTTPS 保护传输中的回答与会话令牌。
 
 前台命令用于验证；长期运行可采用服务器现有的 systemd 管理。示例 unit 如下，将仓库路径、用户、uv 路径替换为真实值：
 

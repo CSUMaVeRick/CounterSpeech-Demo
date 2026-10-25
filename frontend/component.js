@@ -8,18 +8,19 @@ export default function(component) {
   let saved;
   try { saved = JSON.parse(localStorage.getItem(storageKey) || 'null'); }
   catch { saved = null; }
-  const randomToken = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2,'0')).join('');
-  saved ||= {token: randomToken(), events: [], sequence: 0};
-  const sessionId = crypto.randomUUID();
+  // getRandomValues works on HTTP too; randomUUID requires a secure context.
+  const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2,'0')).join('');
+  saved ||= {token: randomId(), events: [], sequence: 0};
+  const sessionId = randomId();
   let postId = null, replyTo = null, draft = '', view = 'feed', seen = new Map(), met = new Set(), renderKey = '';
   const persist = () => {
     try { localStorage.setItem(storageKey, JSON.stringify(saved)); return true; }
     catch { root.textContent = '浏览器存储不可用，请允许此站点存储后刷新。'; return false; }
   };
-  const transmit = () => send('packet', {token:saved.token, events:saved.events, attempt:crypto.randomUUID()});
+  const transmit = () => send('packet', {token:saved.token, events:saved.events, attempt:randomId()});
   function emit(type, target = null, extra = {}) {
     if (!state || state.phase==='submitted' || state.completed && type!=='post_submit' || saved.events.some(e=>['complete','pre_submit','post_submit'].includes(e.type))) return;
-    saved.events.push({event_id:crypto.randomUUID(), type, target, session_id:sessionId,
+    saved.events.push({event_id:randomId(), type, target, session_id:sessionId,
       sequence:++saved.sequence, client_time:new Date().toISOString(), monotonic_ms:performance.now(),
       experiment_id:config.experiment_id, config_version:config.config_version,
       condition_id:condition.id, theme:config.environment.theme, ...extra});
