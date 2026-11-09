@@ -2,16 +2,16 @@ import copy
 import unittest
 from pathlib import Path
 
-from experiment import load_config, validate
-from management import add_author, add_condition, add_post, parse_options, put_question, set_condition_posts
-from study import place_display_name
+from counterspeech.experiment import load_config, validate
+from counterspeech.management import add_author, add_condition, add_post, parse_options, put_question, set_condition_posts
+from counterspeech.study import place_display_name
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class ManagementTest(unittest.TestCase):
     def setUp(self):
-        self.config = load_config(ROOT / "docs/study.example.json")
+        self.config = load_config(ROOT / "configs/examples/study.example.json")
 
     def test_new_user_post_and_condition_are_independent(self):
         add_author(self.config, "new_user", "新用户", "assets/avatars/cat-192.jpg")

@@ -1,19 +1,26 @@
+import hashlib
+import json
 import os
 import sqlite3
-from pathlib import Path
 
 import streamlit as st
 
-from experiment import exchange, load_config, public_config
-from social_ui import component
-
-ROOT = Path(__file__).parent
+from . import ROOT
+from .experiment import exchange, public_config
+from .social_ui import component
 
 
 def configured_path():
     draft = ROOT / "data/study.draft.json"
     release = ROOT / "configs/study.json"
-    return os.environ.get("EXPERIMENT_CONFIG", draft if draft.exists() else release if release.exists() else ROOT / "docs/study.example.json")
+    return os.environ.get("EXPERIMENT_CONFIG", draft if draft.exists() else release if release.exists() else ROOT / "configs/examples/study.example.json")
+
+
+def preview_config(config):
+    has_questions = any(section["blocks"] for section in config.get("flow", {}).values())
+    if config.get("review_only") and not has_questions and not config["environment"].get("show_completion_data"):
+        return {key: value for key, value in config.items() if key != "flow"}
+    return config
 
 
 def run(config, *, mode, condition_id=None):
@@ -22,6 +29,9 @@ def run(config, *, mode, condition_id=None):
     .block-container {padding:0!important;max-width:none!important}
     </style>""", unsafe_allow_html=True)
     entry_key = f"{mode}-{config['experiment_id']}" + (f"-{condition_id}-{config['config_version']}" if mode == "demo" else "")
+    if mode == "demo" and config.get("review_only"):
+        material = json.dumps(config, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        entry_key += "-" + hashlib.sha256(material).hexdigest()[:16]
     reply_key = "reply-" + entry_key
     reply = st.session_state.get(reply_key, {"config": config, "state": None, "ack": []})
     try:

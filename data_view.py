@@ -5,16 +5,15 @@ import json
 import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import streamlit as st
 
-from records import list_records, record_detail
+from counterspeech import ROOT
+from counterspeech.records import list_records, record_detail
 
-ROOT = Path(__file__).parent
 PHASES = {"": "全部", "pre": "前测填写中", "interaction": "交互中", "post": "后测填写中", "submitted": "已提交", "legacy_complete": "旧版交互完成", "legacy_interaction": "旧版交互中"}
 DATABASES = {"正式回收": "responses.sqlite3", "固定条件演示": "demo.sqlite3", "管理预览": "admin-preview.sqlite3"}
-EVENTS = {"session_start": "进入会话", "pre_submit": "确认前测", "post_open": "打开帖子／评论", "post_leave": "离开帖子／评论", "like": "点赞状态变化", "comment": "提交评论／回复", "exposure_met": "达到展示门槛", "exposure_interval": "可见区间", "complete": "完成交互", "post_submit": "提交后测"}
+EVENTS = {"session_start": "进入会话", "pre_submit": "确认前测", "post_open": "打开帖子／评论", "post_leave": "离开帖子／评论", "like": "点赞状态变化", "dislike": "点踩状态变化", "post_read": "帖子阅读确认", "comment": "提交评论／回复", "exposure_met": "达到展示门槛", "exposure_interval": "可见区间", "complete": "完成交互", "post_submit": "提交后测"}
 
 
 def local_time(value):
@@ -24,6 +23,16 @@ def local_time(value):
         return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone(timedelta(hours=8))).strftime("%Y-%m-%d %H:%M:%S")
     except ValueError:
         return str(value)
+
+
+def event_status(event):
+    if event["type"] == "like":
+        return str(event.get("liked", ""))
+    if event["type"] == "dislike":
+        return str(event.get("disliked", ""))
+    if event["type"] == "post_read":
+        return "已勾选" if event["checked"] else "已取消"
+    return f"{event['duration_ms']:.0f} ms" if "duration_ms" in event else ""
 
 
 def answer_rows(config, state, stage):
@@ -106,7 +115,7 @@ for row in data["rows"]:
             st.dataframe(answer_rows(config, state, "post"), width="stretch", hide_index=True)
             st.write("实际题序", state.get("question_order", {}))
         with timeline:
-            st.dataframe([{"服务端时间": local_time(e["received_at"]), "行为": EVENTS.get(e["type"], e["type"]), "对象": e.get("target") or "", "状态／时长": str(e.get("liked", "")) if e["type"] == "like" else f"{e['duration_ms']:.0f} ms" if "duration_ms" in e else "", "提交文本": e.get("text", "")} for e in events], width="stretch", hide_index=True)
+            st.dataframe([{"服务端时间": local_time(e["received_at"]), "行为": EVENTS.get(e["type"], e["type"]), "对象": e.get("target") or "", "状态／时长": event_status(e), "提交文本": e.get("text", "")} for e in events], width="stretch", hide_index=True)
             st.write("最终点赞状态", state.get("likes", {}))
             st.write("已提交评论", state.get("comments", []))
             st.write("已达展示要求的目标", state.get("exposed", []))

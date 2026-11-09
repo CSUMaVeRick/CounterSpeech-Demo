@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from experiment import exchange, load_config
+from counterspeech.experiment import exchange, load_config
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -15,15 +15,14 @@ class DataViewTest(unittest.TestCase):
     def test_password_gate_and_collapsed_records(self):
         from streamlit.testing.v1 import AppTest
 
-        with tempfile.TemporaryDirectory() as folder:
+        with tempfile.TemporaryDirectory() as folder, patch("counterspeech.ROOT", Path(folder)):
             root = Path(folder)
-            script = root / "data_view.py"
-            script.write_text((ROOT / "data_view.py").read_text(encoding="utf-8"), encoding="utf-8")
-            config = load_config(ROOT / "docs/study.example.json")
+            script = ROOT / "data_view.py"
+            config = load_config(ROOT / "configs/examples/study.example.json")
             db_path = root / "data/responses.sqlite3"
             exchange(db_path, config, {"token": "a" * 64}, mode="live")
             before = db_path.read_bytes()
-            with patch.dict(os.environ, {"RESEARCHER_PASSWORD": ""}), patch("records.list_records") as query:
+            with patch.dict(os.environ, {"RESEARCHER_PASSWORD": ""}), patch("counterspeech.records.list_records") as query:
                 app = AppTest.from_file(str(script)).run(timeout=15)
                 self.assertEqual(len(app.exception), 0)
                 self.assertEqual(len(app.error), 1)

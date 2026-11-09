@@ -5,15 +5,15 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from experiment import exchange, load_config, validate
-from study import question_order, resolve, validate_answers
+from counterspeech.experiment import exchange, load_config, validate
+from counterspeech.study import question_order, resolve, validate_answers
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class StudyTest(unittest.TestCase):
     def setUp(self):
-        self.config = load_config(ROOT / "docs/study.example.json")
+        self.config = load_config(ROOT / "configs/examples/study.example.json")
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.db = Path(self.temp.name) / "study.sqlite3"
@@ -29,14 +29,14 @@ class StudyTest(unittest.TestCase):
         post = self.config["flow"]["post"]["blocks"][0]
         post["question_order"] = "random"
         post["questions"].append({"id": "extra_post", "type": "text", "label": "补充", "required": False})
-        with patch("experiment.secrets.choice", return_value=next(c for c in self.config["conditions"] if c["id"] == "local_province")) as choose, patch("study.secrets.SystemRandom.shuffle", side_effect=lambda rows: rows.reverse()):
+        with patch("counterspeech.experiment.secrets.choice", return_value=next(c for c in self.config["conditions"] if c["id"] == "local_province")) as choose, patch("counterspeech.study.secrets.SystemRandom.shuffle", side_effect=lambda rows: rows.reverse()):
             first = self.send(condition_id="other_province")
         self.assertEqual(choose.call_count, 1)
         self.assertEqual(first["state"]["condition_id"], "local_province")
         self.assertEqual(first["state"]["question_order"]["post"], ["extra_post", "impression"])
         changed = copy.deepcopy(self.config)
         changed["conditions"].reverse()
-        with patch("experiment.secrets.choice", side_effect=AssertionError("must not reassign")), patch("study.secrets.SystemRandom.shuffle", side_effect=AssertionError("must not reshuffle")):
+        with patch("counterspeech.experiment.secrets.choice", side_effect=AssertionError("must not reassign")), patch("counterspeech.study.secrets.SystemRandom.shuffle", side_effect=AssertionError("must not reshuffle")):
             restored = self.send(mode="demo", condition_id="other_province", config=changed)
         self.assertEqual(restored, first)
 
@@ -63,6 +63,41 @@ class StudyTest(unittest.TestCase):
         self.assertEqual(result["state"]["phase"], "submitted")
         self.assertEqual(self.send(final)["state"]["completion_code"], result["state"]["completion_code"])
         self.assertEqual(self.send()["state"]["post_answers"]["impression"], "我的回答")
+
+    def test_completion_data_contains_only_this_submitted_session(self):
+        self.config["environment"].update(show_completion_data=True, completion_mode="post_read")
+        self.config["environment"]["enabled_actions"].append("dislike")
+        pre = self.event("pre_submit", answers={"residence": "310101"})
+        other_comment = self.event("comment", target="p01", text="另一个会话的留言")
+        exchange(self.db, self.config, {"token": "d" * 64, "events": [pre, other_comment]},
+                 mode="demo", condition_id="local_province")
+        before = self.send(pre, mode="demo", condition_id="local_province")
+        self.assertNotIn("completion_data", before)
+
+        self.send(self.event("like", target="p01", liked=True),
+                  {**self.event("like", target="c07", liked=True), "event_id": "like-reply"},
+                  {**self.event("like", target="c07", liked=False), "event_id": "unlike-reply"},
+                  self.event("dislike", target="c07", disliked=True),
+                  self.event("comment", target="c07", text="本次会话的回复"))
+        for post_id in before["config"]["conditions"][0]["post_order"]:
+            self.send({**self.event("post_read", target=post_id, checked=True), "event_id": f"read-{post_id}"})
+        self.assertNotIn("completion_data", self.send(self.event("complete")))
+        final = self.event("post_submit", answers={"impression": "我的回答"})
+        result = self.send(final)
+        data = result["completion_data"]
+        self.assertEqual(data["pre_answers"], result["state"]["pre_answers"])
+        self.assertEqual(data["post_answers"], {"impression": "我的回答"})
+        self.assertEqual(data["completion_code"], result["state"]["completion_code"])
+        post = next(row for row in data["posts"] if row["post_id"] == "p01")
+        self.assertTrue(post["read"])
+        self.assertTrue(post["liked"])
+        comment = next(row for row in post["comments"] if row["comment_id"] == "c07")
+        self.assertFalse(comment["liked"])
+        self.assertTrue(comment["disliked"])
+        self.assertEqual(comment["submitted_replies"], [{"id": "comment", "text": "本次会话的回复"}])
+        self.assertEqual([row["liked"] for row in data["interactions"] if row.get("target") == "c07" and row["type"] == "like"], [True, False])
+        self.assertNotIn(other_comment["text"], json.dumps(data, ensure_ascii=False))
+        self.assertEqual(self.send()["completion_data"], data)
 
     def test_fixed_demo_and_fallback_location(self):
         result = self.send(mode="demo", condition_id="other_province")
@@ -97,7 +132,7 @@ class StudyTest(unittest.TestCase):
         pre["blocks"][0]["question_order"] = "random"
         pre["blocks"][0]["questions"].append({"id": "age", "type": "number", "label": "年龄", "required": False})
         pre["blocks"].append({"id": "another", "question_order": "fixed", "questions": [{"id": "extra", "label": "补充", "type": "text", "required": False}]})
-        with patch("study.secrets.SystemRandom.shuffle", side_effect=lambda rows: rows.reverse()) as shuffle:
+        with patch("counterspeech.study.secrets.SystemRandom.shuffle", side_effect=lambda rows: rows.reverse()) as shuffle:
             order = question_order(config)
         self.assertEqual(shuffle.call_count, 2)
         self.assertEqual(order["pre"], ["extra", "age", "residence"])

@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from experiment import exchange, load_config
-from records import list_records, record_detail
+from counterspeech.experiment import exchange, load_config
+from counterspeech.records import list_records, record_detail
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,7 +16,7 @@ class RecordsTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / "demo.sqlite3"
-        config = load_config(ROOT / "docs/study.example.json")
+        config = load_config(ROOT / "configs/examples/study.example.json")
         exchange(self.path, config, {"token": "a" * 64}, mode="demo", condition_id="local_province")
         self.completed = exchange(self.path, config, {"token": "b" * 64, "events": [
             {"event_id": "pre", "type": "pre_submit", "answers": {"residence": "310101"}},

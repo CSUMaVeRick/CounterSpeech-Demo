@@ -13,10 +13,10 @@ class AdminTest(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.working = Path(self.folder.name) / "admin.work.json"
-        environment = patch.dict(os.environ, {"ADMIN_WORKING_CONFIG": str(self.working), "EXPERIMENT_CONFIG": str(Path(__file__).resolve().parents[1] / "docs/study.example.json")})
+        environment = patch.dict(os.environ, {"ADMIN_WORKING_CONFIG": str(self.working), "EXPERIMENT_CONFIG": str(Path(__file__).resolve().parents[1] / "configs/examples/study.example.json")})
         environment.start()
         self.addCleanup(environment.stop)
-    @patch("social_ui.component")
+    @patch("counterspeech.social_ui.component")
     def test_profile_location_can_use_pre_province(self, component):
         from streamlit.testing.v1 import AppTest
 
@@ -30,7 +30,7 @@ class AdminTest(unittest.TestCase):
         author = app.session_state["config"]["stimuli"]["authors"][0]
         self.assertEqual((author["location_mode"], author["location"]), ("answer", "province"))
 
-    @patch("social_ui.component")
+    @patch("counterspeech.social_ui.component")
     def test_profile_edit_survives_rerun(self, component):
         from streamlit.testing.v1 import AppTest
 
@@ -46,7 +46,7 @@ class AdminTest(unittest.TestCase):
         app.run(timeout=15)
         self.assertEqual(app.session_state["config"]["stimuli"]["authors"][0]["display_name"], "管理页测试昵称")
 
-    @patch("social_ui.component")
+    @patch("counterspeech.social_ui.component")
     def test_create_question_without_internal_reference_fields(self, component):
         from streamlit.testing.v1 import AppTest
 
@@ -64,7 +64,7 @@ class AdminTest(unittest.TestCase):
         self.assertEqual(qs[-1]["id"], "pos1")
         self.assertEqual(qs[-1]["options"], list("1234567"))
 
-    @patch("social_ui.component")
+    @patch("counterspeech.social_ui.component")
     def test_create_user_post_and_condition_in_forms(self, component):
         from streamlit.testing.v1 import AppTest
 

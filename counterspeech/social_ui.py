@@ -1,10 +1,9 @@
 import hashlib
-from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v2 as components
 
-ROOT = Path(__file__).parent
+from . import ROOT
 
 
 @st.cache_resource

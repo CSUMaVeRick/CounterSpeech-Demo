@@ -9,14 +9,14 @@ from pathlib import Path
 
 import streamlit as st
 
-from experiment import exchange, load_config, public_config, save_draft, validate, write_working_draft
-from social_ui import component
-from participant_ui import configured_path
-from study_admin import conditions_editor, questionnaire_editor, variables_editor
-from management import add_author, add_post
-from study import profile_location_mode
+from counterspeech import ROOT
+from counterspeech.experiment import exchange, load_config, normalize_materials, public_config, save_draft, validate, write_working_draft
+from counterspeech.management import add_author, add_post
+from counterspeech.participant_ui import configured_path, preview_config
+from counterspeech.social_ui import component
+from counterspeech.study import profile_location_mode
+from counterspeech.study_admin import conditions_editor, questionnaire_editor, variables_editor
 
-ROOT = Path(__file__).parent
 DRAFT = ROOT / "data/study.draft.json"
 WORKING = Path(os.environ.get("ADMIN_WORKING_CONFIG", ROOT / "data/admin.work.json"))
 st.set_page_config(page_title="微博实验配置", layout="wide")
@@ -24,7 +24,7 @@ st.title("微博实验配置")
 st.caption("新增／应用编辑后会自动保存工作草稿，刷新或重启不会丢失。校验并发布后才供演示和正式入口使用；预览使用当前工作草稿。")
 if "config" not in st.session_state:
     try:
-        st.session_state.config = json.loads(WORKING.read_text(encoding="utf-8")) if WORKING.exists() else load_config(configured_path())
+        st.session_state.config = normalize_materials(json.loads(WORKING.read_text(encoding="utf-8"))) if WORKING.exists() else load_config(configured_path())
     except (OSError, ValueError, KeyError, TypeError) as error:
         st.error(f"工作草稿无法读取，原文件未被覆盖：{error}")
         st.stop()
@@ -44,7 +44,7 @@ if save.button("校验并发布配置", type="primary", width="stretch"):
     except (ValueError, KeyError, TypeError, OSError) as error:
         st.error(str(error))
 if st.session_state.get("saved_config") == json.dumps(config, sort_keys=True, ensure_ascii=False):
-    st.success("已保存。参与者应用中的新会话将使用此配置；已有参与者仍用原快照。")
+    st.success("已保存审阅配置，参与者入口暂未开放。" if config.get("review_only") else "已保存。参与者应用中的新会话将使用此配置；已有参与者仍用原快照。")
 
 profiles, posts, comments, environment, variables, questionnaires, combinations, preview = st.tabs(["发布者资料", "帖子", "评论与回复树", "浏览完成条件", "实验变量", "前后测题目", "条件组合", "预览"])
 with variables:
@@ -103,7 +103,7 @@ with profiles:
 
 with posts:
     with st.expander("新增帖子"):
-        st.caption("从现有帖子复制一份独立材料及其 10 条评论，之后可以分别编辑。创建后在“条件组合”中勾选，才会展示给被试；新加入组合的评论先按顶层排列，可继续修改回复树。")
+        st.caption("从现有帖子复制一份独立材料及其预设评论，之后可以分别编辑。创建后在“条件组合”中勾选，才会展示给被试；新加入组合的评论先按顶层排列，可继续修改回复树。")
         with st.form("new-post", clear_on_submit=True):
             new_post_id = st.text_input("新帖子 ID")
             post_source_id = st.selectbox("复制材料来源", [p["id"] for p in config["stimuli"]["posts"]])
@@ -157,8 +157,18 @@ with comments:
     condition_id = st.selectbox("实验条件", condition_ids)
     condition = next(c for c in config["conditions"] if c["id"] == condition_id)
     comment_map = {c["id"]: c for c in config["stimuli"]["comments"]}
-    rows = [{"relative_time_minutes": 0, **comment_map[r["comment_id"]], "parent_id": r["parent_id"], "sibling_order": r["sibling_order"]} for r in condition["comment_layout"]]
-    st.caption("评论 ID／帖子 ID 用于引用，不随文案变化。父评论留空表示顶层；同级顺序只控制同一父级下的排列，和时间、赞数互不影响。每帖 10 条，包含回复。")
+    rows = []
+    for layout_row in condition["comment_layout"]:
+        row = {"relative_time_minutes": 0, **comment_map[layout_row["comment_id"]]}
+        variants = row.pop("text_by_strategy", {})
+        row.pop("fact_source", None)
+        row["text"] = variants.get(condition.get("counter_strategy"), row["text"])
+        row.update(parent_id=layout_row["parent_id"], sibling_order=layout_row["sibling_order"])
+        rows.append(row)
+    st.caption("评论 ID／帖子 ID 用于引用，不随文案变化。父评论留空表示顶层；同级顺序只控制同一父级下的排列，和时间、赞数互不影响。")
+    feedback = config.get("counter_feedback_levels", {}).get(condition.get("counter_feedback"))
+    if feedback is not None:
+        st.caption(f"当前条件为反驳回复设置 {feedback['initial_likes']} 赞、{feedback['initial_dislikes']} 踩。可在 JSON 的 counter_feedback_levels 中调整。")
     st.info("时间字段记录原帖发布后多少分钟：5 表示原帖发布 5 分钟后发出的评论。它不是真实时间戳；回复时间应不早于父评论，且不能晚于模拟浏览时点。研究角色 counter_speech 只给研究者看。")
     with st.form(f"comments-{condition_id}"):
         changed = st.data_editor(rows, disabled=["id", "post_id"], column_config={"relative_time_minutes": st.column_config.NumberColumn("晚于原帖（分钟）", min_value=0, step=1, required=True), "parent_id": st.column_config.TextColumn("父评论 ID"), "sibling_order": st.column_config.NumberColumn("同级顺序", min_value=1, step=1), "text": st.column_config.TextColumn("评论正文"), "author_id": st.column_config.SelectboxColumn("作者 ID", options=list(authors)), "initial_likes": st.column_config.NumberColumn("初始赞数", min_value=0, step=1), "research_role": st.column_config.TextColumn("研究角色")}, width="stretch", hide_index=True, key=f"comments-table-{condition_id}")
@@ -169,7 +179,11 @@ with comments:
             candidate_condition = next(c for c in candidate["conditions"] if c["id"] == condition_id)
             candidate_condition["comment_layout"] = []
             for row in changed:
-                candidate_comments[row["id"]].update({key: value for key, value in row.items() if key not in {"parent_id", "sibling_order"}})
+                comment = candidate_comments[row["id"]]
+                fields = {key: value for key, value in row.items() if key not in {"parent_id", "sibling_order"}}
+                if "text_by_strategy" in comment and candidate_condition.get("counter_strategy") in comment["text_by_strategy"]:
+                    comment["text_by_strategy"][candidate_condition["counter_strategy"]] = fields.pop("text")
+                comment.update(fields)
                 candidate_condition["comment_layout"].append({"comment_id": row["id"], "parent_id": row["parent_id"] or None, "sibling_order": row["sibling_order"]})
             candidate_condition["required_exposure_comment_ids"] = targets
             try:
@@ -180,16 +194,19 @@ with comments:
                 st.error(str(error))
 
 with environment:
-    st.info("浏览完成条件决定何时允许从微博交互进入后测。它不会置顶或移动评论，只检查“评论与回复树”中指定的必展示评论是否进入视野。每个指定目标都须达标。")
-    st.caption("最低可见比例 0.5 表示至少一半正文在屏幕内；连续 2000 毫秒表示保持 2 秒。切换到后台、移出视野、打开遮挡弹窗会中断连续计时。已达标状态会保存。可见不等于认真阅读。")
-    with st.form("exposure"):
-        exp = config["environment"]["exposure"]
-        fraction = st.number_input("最低可见比例", min_value=0.01, max_value=1.0, value=float(exp["minimum_visible_fraction"]), step=0.05)
-        duration = st.number_input("连续可见时长（毫秒）", min_value=100, value=exp["continuous_visible_ms"], step=100)
-        if st.form_submit_button("应用展示要求"):
-            config["environment"]["theme"] = "weibo"
-            exp.update(minimum_visible_fraction=fraction, continuous_visible_ms=duration)
-            st.success("展示要求已应用。")
+    if config["environment"].get("completion_mode") == "post_read":
+        st.info("当前采用逐帖确认。全部帖子右下角的“已阅读”勾选并保存后，才可以完成浏览环节。")
+    else:
+        st.info("浏览完成条件决定何时允许从微博交互进入后测。“评论与回复树”中指定的必展示评论须全部达到可见门槛。")
+        st.caption("最低可见比例 0.5 表示至少一半正文在屏幕内；连续 2000 毫秒表示保持 2 秒。切换到后台、移出视野、打开遮挡弹窗会中断连续计时。已达标状态会保存。")
+        with st.form("exposure"):
+            exp = config["environment"]["exposure"]
+            fraction = st.number_input("最低可见比例", min_value=0.01, max_value=1.0, value=float(exp["minimum_visible_fraction"]), step=0.05)
+            duration = st.number_input("连续可见时长（毫秒）", min_value=100, value=exp["continuous_visible_ms"], step=100)
+            if st.form_submit_button("应用展示要求"):
+                config["environment"]["theme"] = "weibo"
+                exp.update(minimum_visible_fraction=fraction, continuous_visible_ms=duration)
+                st.success("展示要求已应用。")
 
 with preview:
     try:
@@ -201,15 +218,16 @@ with preview:
     try:
         validate(config)
         preview_condition = st.selectbox("预览条件组合", [c["id"] for c in config["conditions"]])
-        digest = hashlib.sha256((json.dumps(config, sort_keys=True, ensure_ascii=False) + preview_condition).encode()).hexdigest()[:16]
+        preview_study = preview_config(config)
+        digest = hashlib.sha256((json.dumps(preview_study, sort_keys=True, ensure_ascii=False) + preview_condition).encode()).hexdigest()[:16]
         if st.button("重新开始预览"):
             st.session_state.preview_round = st.session_state.get("preview_round", 0) + 1
         preview_id = digest + str(st.session_state.get("preview_round", 0))
         replies = st.session_state.setdefault("preview_replies", {})
-        reply = replies.get(preview_id, {"config": config, "state": None, "ack": []})
+        reply = replies.get(preview_id, {"config": preview_study, "state": None, "ack": []})
         result = component()(data={**reply, "config": public_config(reply["config"]), "preview_id": preview_id}, key="preview-" + preview_id, on_packet_change=lambda: None)
         if result.packet:
-            updated = exchange(ROOT / "data/admin-preview.sqlite3", config, result.packet, mode="preview", condition_id=preview_condition)
+            updated = exchange(ROOT / "data/admin-preview.sqlite3", preview_study, result.packet, mode="preview", condition_id=preview_condition)
             if updated != replies.get(preview_id):
                 replies[preview_id] = updated
                 st.rerun()

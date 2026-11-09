@@ -10,10 +10,11 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from study import question_order, regions, resolve, validate_answers, validate_study
+from . import ROOT
+from .records import completed_session_data
+from .study import question_order, regions, resolve, validate_answers, validate_study
 
 THEMES = {"weibo", "xiaohongshu", "douyin", "bilibili", "zhihu"}
-ROOT = Path(__file__).parent
 
 
 def asset_url(source):
@@ -33,7 +34,7 @@ def save_draft(path, config):
     public_config(config)
     path = Path(path)
     if path.exists():
-        old = json.loads(path.read_text(encoding="utf-8"))
+        old = normalize_materials(json.loads(path.read_text(encoding="utf-8")))
         if old != config and old["config_version"] == config["config_version"]:
             raise ValueError("配置有变化，请先更新配置版本号")
     write_working_draft(path, config)
@@ -51,6 +52,48 @@ def write_working_draft(path, config):
     os.replace(temporary, path)
 
 
+def normalize_materials(config):
+    """Convert nested authoring materials to the existing comment bank and layout."""
+    stimuli = config["stimuli"]
+    if "comments" in stimuli:
+        if any("comments" in post for post in stimuli["posts"]):
+            raise ValueError("请在帖子内嵌评论和独立评论表之间选择一种格式")
+        return config
+
+    comments, layout = [], []
+
+    def collect(rows, post_id, parent_id=None):
+        if not isinstance(rows, list):
+            raise ValueError("comments 和 replies 须为数组")
+        for order, entry in enumerate(rows, 1):
+            row = {**entry, "post_id": post_id}
+            replies = row.pop("replies", [])
+            if "text_by_strategy" in row:
+                row.setdefault("text", "")
+            comments.append(row)
+            layout.append({"comment_id": row["id"], "parent_id": parent_id, "sibling_order": order})
+            collect(replies, post_id, row["id"])
+
+    posts = []
+    for entry in stimuli["posts"]:
+        post = dict(entry)
+        collect(post.pop("comments", []), post["id"])
+        posts.append(post)
+
+    post_ids = [post["id"] for post in posts]
+    comment_posts = {row["id"]: row["post_id"] for row in comments}
+    conditions = []
+    for entry in config["conditions"]:
+        condition = dict(entry)
+        selected_posts = set(condition.setdefault("post_order", list(post_ids)))
+        condition.setdefault("comment_layout", [dict(row) for row in layout if comment_posts[row["comment_id"]] in selected_posts])
+        condition.setdefault("required_exposure_comment_ids", [
+            row["id"] for row in comments if row["post_id"] in selected_posts and row.get("research_role") == "counter_speech"
+        ])
+        conditions.append(condition)
+    return {**config, "stimuli": {**stimuli, "posts": posts, "comments": comments}, "conditions": conditions}
+
+
 def validate(config):
     def require(ok, message):
         if not ok:
@@ -59,7 +102,22 @@ def validate(config):
     env, stimuli = config["environment"], config["stimuli"]
     require(isinstance(config["config_version"], str) and bool(config["config_version"].strip()), "配置版本号不能为空")
     require(env["theme"] in THEMES, "未知主题")
-    require(set(env["enabled_actions"]) <= {"like", "comment", "reply"}, "未知交互")
+    completion_mode = env.get("completion_mode", "exposure")
+    require(completion_mode in ("exposure", "post_read"), "未知浏览完成条件")
+    show_completion_data = env.get("show_completion_data", False)
+    require(type(show_completion_data) is bool, "完成页数据显示须为布尔值")
+    require(not show_completion_data or "flow" in config, "显示完成数据需要前后测流程")
+    require(type(env.get("mask_background_reaction_counts", False)) is bool, "背景赞踩数遮挡设置须为布尔值")
+    feedback_levels = config.get("counter_feedback_levels", {})
+    require(isinstance(feedback_levels, dict), "反驳赞踩档位须为对象")
+    for level_id, feedback in feedback_levels.items():
+        require(isinstance(level_id, str) and level_id.strip() and isinstance(feedback, dict), "无效的反驳赞踩档位")
+        label = feedback.get("label")
+        require(isinstance(label, str) and label.strip(), "反驳赞踩档位名称不能为空")
+        for field in ("initial_likes", "initial_dislikes"):
+            count = feedback.get(field)
+            require(type(count) is int and count >= 0, "反驳赞踩数须为非负整数")
+    require(set(env["enabled_actions"]) <= {"like", "dislike", "comment", "reply"}, "未知交互")
     require(type(env["max_comment_characters"]) is int and env["max_comment_characters"] > 0, "无效字数限制")
     exposure = env["exposure"]
     require(0 < exposure["minimum_visible_fraction"] <= 1, "无效可见比例")
@@ -82,21 +140,31 @@ def validate(config):
         require(row["author_id"] in maps["authors"], "作者不存在")
         require(isinstance(row["text"], str), "正文须为文本")
         require(type(row["initial_likes"]) is int and row["initial_likes"] >= 0, "赞数须为非负整数")
+        dislikes = row.get("initial_dislikes", 0)
+        require(type(dislikes) is int and dislikes >= 0, "踩数须为非负整数")
     for row in stimuli["comments"]:
         require(row["post_id"] in maps["posts"], "评论帖子不存在")
+        if "text_by_strategy" in row:
+            variants = row["text_by_strategy"]
+            require(isinstance(variants, dict) and bool(variants) and all(
+                isinstance(strategy, str) and strategy.strip() and isinstance(text, str) and text.strip()
+                for strategy, text in variants.items()
+            ), "反驳文案须按策略提供非空文本")
         minutes = row.get("relative_time_minutes", 0)
         require(type(minutes) is int and minutes >= 0, "评论相对时间须为非负整数分钟")
         age = maps["posts"][row["post_id"]].get("age_minutes")
         require(age is None or type(age) is int and minutes <= age, "评论不能晚于模拟浏览时点")
     for post in stimuli["posts"]:
         require("age_minutes" not in post or type(post["age_minutes"]) is int and post["age_minutes"] >= 0, "帖子发布时长须为非负整数分钟")
-        require(sum(c["post_id"] == post["id"] for c in stimuli["comments"]) == 10, "每帖须有 10 条预设评论（含回复）")
         require(isinstance(post.get("source", ""), str), "发布来源须为文本")
         for media in post.get("media", []):
             require(isinstance(media, dict) and isinstance(media.get("src"), str) and isinstance(media.get("alt"), str), "图片需要 src 和 alt")
     conditions = config["conditions"]
     require(bool(conditions) and len({c["id"] for c in conditions}) == len(conditions), "条件为空或重复")
     for condition in conditions:
+        if "counter_feedback" in condition:
+            level_id = condition["counter_feedback"]
+            require(isinstance(level_id, str) and level_id in feedback_levels, f"条件 {condition['id']} 的反驳赞踩档位不存在")
         posts = condition["post_order"]
         require(bool(posts) and len(set(posts)) == len(posts) and set(posts) <= maps["posts"].keys(), "帖子顺序无效")
         layout = condition["comment_layout"]
@@ -108,6 +176,10 @@ def validate(config):
             cid, parent = row["comment_id"], row["parent_id"]
             require(parent is None or parent in by_id, "父评论不存在")
             post_id = maps["comments"][cid]["post_id"]
+            variants = maps["comments"][cid].get("text_by_strategy")
+            if variants is not None:
+                strategy = condition.get("counter_strategy")
+                require(isinstance(strategy, str) and strategy in variants, f"条件 {condition['id']} 缺少评论 {cid} 的反驳策略")
             require(parent is None or maps["comments"][parent]["post_id"] == post_id, "不能跨帖回复")
             require(parent is None or maps["comments"][cid].get("relative_time_minutes", 0) >= maps["comments"][parent].get("relative_time_minutes", 0), "回复时间不能早于父评论")
             order = row["sibling_order"]
@@ -121,15 +193,16 @@ def validate(config):
                 visited.add(parent)
                 parent = by_id[parent]["parent_id"]
         targets = condition["required_exposure_comment_ids"]
-        require(bool(targets) and set(targets) <= by_id.keys(), "必展示评论缺失")
-        for pid in posts:
-            require(any(maps["comments"][cid]["post_id"] == pid for cid in targets), "每帖至少指定一个必展示目标")
+        require(set(targets) <= by_id.keys(), "必展示评论缺失")
+        if completion_mode == "exposure":
+            for pid in posts:
+                require(any(maps["comments"][cid]["post_id"] == pid for cid in targets), "每帖至少指定一个必展示目标")
     validate_study(config)
     return config
 
 
 def load_config(path):
-    return validate(json.loads(Path(path).read_text(encoding="utf-8")))
+    return validate(normalize_materials(json.loads(Path(path).read_text(encoding="utf-8"))))
 
 
 def connect(path):
@@ -175,6 +248,17 @@ def exchange(path, config, packet, *, mode="preview", condition_id=None):
                     raise ValueError("演示条件不存在")
                 config = copy.deepcopy(config)
                 config["conditions"] = [copy.deepcopy(selected)]
+                selected_posts = set(selected["post_order"])
+                feedback = config.get("counter_feedback_levels", {}).get(selected.get("counter_feedback"))
+                for comment in config["stimuli"]["comments"]:
+                    variants = comment.pop("text_by_strategy", None)
+                    if comment["post_id"] not in selected_posts:
+                        continue
+                    if variants:
+                        comment["text"] = variants[selected["counter_strategy"]]
+                    if feedback is not None and comment.get("research_role") == "counter_speech":
+                        comment["initial_likes"] = feedback["initial_likes"]
+                        comment["initial_dislikes"] = feedback["initial_dislikes"]
                 state = {"likes": {}, "comments": [], "exposed": [], "completed": False, "mode": mode, "condition_id": selected["id"]}
                 if "flow" in config:
                     state.update(phase="pre", question_order=question_order(config), pre_answers={}, post_answers={}, resolved_variables={})
@@ -184,6 +268,7 @@ def exchange(path, config, packet, *, mode="preview", condition_id=None):
             rows = {r["id"]: r for r in config["stimuli"]["posts"] + config["stimuli"]["comments"]}
             allowed = posts | {r["comment_id"] for r in condition["comment_layout"]}
             targets = set(condition["required_exposure_comment_ids"])
+            manual_read = config["environment"].get("completion_mode") == "post_read"
             ack = []
             for event in incoming:
                 eid = event.get("event_id")
@@ -210,10 +295,22 @@ def exchange(path, config, packet, *, mode="preview", condition_id=None):
                         raise ValueError("请先完成交互")
                     answers = validate_answers(config, "post", event.get("answers"))
                     state.update(post_answers=answers, phase="submitted", completion_code=secrets.token_hex(6), submitted_at=datetime.now(timezone.utc).isoformat())
-                elif kind == "like":
-                    if "like" not in config["environment"]["enabled_actions"] or target not in allowed or type(event.get("liked")) is not bool:
-                        raise ValueError("无效点赞操作")
-                    state["likes"][target] = event["liked"]
+                elif kind in {"like", "dislike"}:
+                    field = "liked" if kind == "like" else "disliked"
+                    active = event.get(field)
+                    if kind not in config["environment"]["enabled_actions"] or target not in allowed or type(active) is not bool:
+                        raise ValueError("无效点赞操作" if kind == "like" else "无效点踩操作")
+                    reactions = state.setdefault(kind + "s", {})
+                    other_kind = "dislike" if kind == "like" else "like"
+                    other_reactions = state.get(other_kind + "s", {})
+                    reactions[target] = active
+                    if active and other_reactions.get(target):
+                        other_reactions[target] = False
+                        event = {**event, "cleared_reaction": other_kind}
+                elif kind == "post_read":
+                    if not manual_read or target not in posts or type(event.get("checked")) is not bool:
+                        raise ValueError("无效的帖子阅读确认")
+                    state.setdefault("read_posts", {})[target] = event["checked"]
                 elif kind == "comment":
                     text = event.get("text", "")
                     if target not in allowed or not isinstance(text, str) or not text.strip() or len(text) > config["environment"]["max_comment_characters"]:
@@ -233,7 +330,11 @@ def exchange(path, config, packet, *, mode="preview", condition_id=None):
                         if target not in state["exposed"]:
                             state["exposed"].append(target)
                 elif kind == "complete":
-                    if not targets <= set(state["exposed"]):
+                    if manual_read:
+                        read_posts = state.get("read_posts", {})
+                        if not all(read_posts.get(post_id, False) for post_id in posts):
+                            raise ValueError("请先勾选所有帖子的“已阅读”")
+                    elif not targets <= set(state["exposed"]):
                         raise ValueError("请继续浏览评论后完成本环节")
                     state["completed"] = True
                     if "flow" in config:
@@ -247,7 +348,10 @@ def exchange(path, config, packet, *, mode="preview", condition_id=None):
                 db.execute("INSERT INTO events VALUES (?, ?, ?, ?)", (participant, eid, datetime.now(timezone.utc).isoformat(), encoded))
                 ack.append(eid)
             db.execute("UPDATE sessions SET config=?,state=? WHERE token_hash=?", (json.dumps(config, ensure_ascii=False), json.dumps(state, ensure_ascii=False), participant))
-        return {"config": config, "state": state, "ack": ack}
+        result = {"config": config, "state": state, "ack": ack}
+        if state.get("phase") == "submitted" and config["environment"].get("show_completion_data"):
+            result["completion_data"] = completed_session_data(db, participant, config, state)
+        return result
     except ValueError as error:
         error.event_id = eid
         raise
@@ -257,17 +361,27 @@ def exchange(path, config, packet, *, mode="preview", condition_id=None):
 
 def public_config(config):
     result = copy.deepcopy(config)
+    mask_counts = result["environment"].pop("mask_background_reaction_counts", False)
     for author in result["stimuli"]["authors"]:
         author["avatar"] = asset_url(author.get("avatar") or "assets/avatar-default.svg")
     for post in result["stimuli"]["posts"]:
+        if mask_counts:
+            post["mask_reaction_counts"] = True
         for media in post.get("media", []):
             media["src"] = asset_url(media["src"])
     for comment in result["stimuli"]["comments"]:
+        if mask_counts and comment.get("research_role") != "counter_speech":
+            comment["mask_reaction_counts"] = True
         comment.pop("research_role", None)
+        comment.pop("text_by_strategy", None)
+        comment.pop("fact_source", None)
     result["stimuli"].pop("material_status", None)
     if "flow" in result:
         result["regions"] = regions()
     result.pop("variables", None)
+    result.pop("counter_feedback_levels", None)
     for condition in result["conditions"]:
         condition.pop("variable_rules", None)
+        condition.pop("counter_strategy", None)
+        condition.pop("counter_feedback", None)
     return result

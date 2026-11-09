@@ -1,34 +1,32 @@
 # Git + uv 部署
 
-Windows Server 可按下节使用 Git bundle；后续章节以单实例 Linux 服务器为例。
+本页说明从 Git 仓库部署当前审阅版。Linux 示例采用单实例运行。Windows Server 可按下节启动，也支持使用 Git bundle 离线更新。
 
-## Windows Server：通过 bundle 更新
+## Windows Server
 
-无需 Nginx、Caddy 或宝塔即可直接运行。0.1.1 修复了公网 HTTP 下 `crypto.randomUUID is not a function` 的启动错误；HTTP 仍不提供传输加密，正式回收应配置 HTTPS。
-
-先在运行 Streamlit 的终端按 Ctrl+C 停服，把新 bundle 上传到服务器。在已有项目目录运行以下 PowerShell 命令，将 bundle 路径改为实际位置：
+在服务器上克隆仓库，进入项目目录，在 PowerShell 中运行：
 
 ```powershell
-git fetch C:\deploy\CounterSpeech-v0.1.1.bundle main
-git merge --ff-only FETCH_HEAD
 uv sync --frozen
-uv run --frozen streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+$env:EXPERIMENT_CONFIG = (Resolve-Path 'configs/study.json').Path
+uv run --frozen streamlit run demo.py --server.address 127.0.0.1 --server.port 8502
 ```
 
-然后刷新原来的 IP 地址页面。合作者演示可将 `app.py` 换成 `demo.py`。更新不包含数据库或本地管理草稿，也不会清空已有回收记录。如果 Git 提示本地修改冲突，先保留修改，不要使用强制重置。
+更新时先停服，在现有仓库执行 `git pull --ff-only`，再重跑上述命令。使用离线发布包时，可将 `git pull` 替换为以下命令，路径按实际文件调整：
 
-新安装时先安装 Git 和 uv，再运行 `git clone C:\deploy\CounterSpeech-v0.1.1.bundle CounterSpeech`、`cd CounterSpeech`，接着执行上面的 `uv sync` 和启动命令。云安全组及 Windows 防火墙需允许选定端口。终端前台运行适合验证；正式持续运行需另设 Windows 服务或任务计划。
+```powershell
+git fetch C:\deploy\CounterSpeech.bundle main
+git merge --ff-only FETCH_HEAD
+```
 
-启用 HTTPS 需要证书和 TLS 服务入口，Streamlit 本身也有证书配置选项。反向代理是常见方案，但不是唯一方式。没有域名也可以申请公网 IP 证书；Let's Encrypt 的 IP 证书有效期约六天，必须安排自动续期。自签证书会触发浏览器信任警告，不适合直接向被试分发。
-
-参考：[Let's Encrypt IP 证书](https://letsencrypt.org/2026/01/15/6day-and-ip-general-availability)、[Streamlit 配置](https://docs.streamlit.io/develop/api-reference/configuration/config.toml)。
+可在服务器本机浏览器访问演示。供合作者访问时，配置 HTTPS 反向代理并转发 WebSocket。长期运行可设 Windows 服务或计划任务。
 
 ## 1. 安装与重建环境
 
 安装 Git、uv。uv 官方安装说明：https://docs.astral.sh/uv/getting-started/installation/
 
 ```bash
-git clone <你的仓库地址> CounterSpeech
+git clone YOUR_REPOSITORY_URL CounterSpeech
 cd CounterSpeech
 uv sync --frozen
 uv run --frozen python -m unittest discover -s tests -v
@@ -43,7 +41,7 @@ export EXPERIMENT_CONFIG="$PWD/configs/study.json"
 uv run --frozen streamlit run demo.py --server.address 127.0.0.1 --server.port 8502
 ```
 
-在 HTTPS 反向代理中把演示域名转发至 127.0.0.1:8502，允许 WebSocket 升级并保留 query string。可分享条件选择首页，或添加 `?condition=local_province` / `?condition=other_province` 的固定条件链接。
+在 HTTPS 反向代理中把演示域名转发至 127.0.0.1:8502，允许 WebSocket 升级并保留 query string。可分享演示首页，或添加 `?condition=review_direct_mixed` 的固定条件链接。
 
 通过 SSH 临时试用也可将远端 8502 转发到本机：`ssh -L 8502:127.0.0.1:8502 <服务器>`。此时本机用 localhost 访问；正式公网访问使用 HTTPS 保护传输中的回答与会话令牌。
 

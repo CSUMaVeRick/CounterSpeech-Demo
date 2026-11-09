@@ -4,7 +4,8 @@ import json
 import re
 import secrets
 from functools import lru_cache
-from pathlib import Path
+
+from . import ROOT
 
 PLACEHOLDER = re.compile(r"\{([^{}]+)\}")
 QUESTION_TYPES = {"text", "single_choice", "multiple_choice", "number", "location"}
@@ -35,7 +36,7 @@ def answer_text(values, field):
 
 @lru_cache(maxsize=1)
 def regions():
-    return json.loads((Path(__file__).parent / "assets/regions.json").read_text(encoding="utf-8"))
+    return json.loads((ROOT / "assets/regions.json").read_text(encoding="utf-8"))
 
 
 def questions(config, stage):
@@ -128,7 +129,8 @@ def validate_study(config):
             elif kind != "literal":
                 raise ValueError("未知变量规则")
     for row in config["stimuli"]["posts"] + config["stimuli"]["comments"]:
-        if not set(PLACEHOLDER.findall(row["text"])) <= set(names):
+        texts = [row["text"], *row.get("text_by_strategy", {}).values()]
+        if any(not set(PLACEHOLDER.findall(text)) <= set(names) for text in texts):
             raise ValueError("正文使用了未注册变量")
 
 

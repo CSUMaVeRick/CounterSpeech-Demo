@@ -3,8 +3,8 @@ import copy
 
 import streamlit as st
 
-from experiment import validate
-from management import add_condition, parse_options, put_question, set_condition_posts
+from .experiment import validate
+from .management import add_condition, parse_options, put_question, set_condition_posts
 
 
 def variables_editor(config):

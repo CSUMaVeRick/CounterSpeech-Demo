@@ -1,6 +1,6 @@
 # 社交媒体实验交互规格（讨论稿）
 
-状态：原始交互设计稿。已实现的 demo 范围及验证结果见项目 `README.md`；本稿包含尚未实现的正式实验要求。配套配置：`experiment.example.json`。
+此页归档原始交互设计稿。当前实现见[项目首页](../../README.md)，早期配置见[实验示例](../../configs/examples/experiment.example.json)。
 
 ## 1. 已确定的范围
 

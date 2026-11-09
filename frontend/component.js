@@ -12,7 +12,8 @@ export default function(component) {
   const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), n => n.toString(16).padStart(2,'0')).join('');
   saved ||= {token: randomId(), events: [], sequence: 0};
   const sessionId = randomId();
-  let postId = null, replyTo = null, draft = '', view = 'feed', seen = new Map(), met = new Set(), renderKey = '';
+  let postId = null, view = 'feed', seen = new Map(), met = new Set(), renderKey = '';
+  const reviewExpandedPosts = new Set(), replyTargets = new Map(), drafts = new Map();
   const persist = () => {
     try { localStorage.setItem(storageKey, JSON.stringify(saved)); return true; }
     catch { root.textContent = '浏览器存储不可用，请允许此站点存储后刷新。'; return false; }
@@ -49,7 +50,9 @@ export default function(component) {
     };
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');svg.classList.add('icon');
-    const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',paths[name]);
+    const path=document.createElementNS(svg.namespaceURI,'path');
+    path.setAttribute('d',paths[name === 'dislike' ? 'like' : name]);
+    if (name === 'dislike') path.setAttribute('transform','translate(0 24) scale(1 -1)');
     svg.append(path);return svg;
   }
   function iconButton(name, text, action, cls='') {
@@ -69,26 +72,65 @@ export default function(component) {
   const author = id => config.stimuli.authors.find(a => a.id === id).display_name;
   const post = id => config.stimuli.posts.find(p => p.id === id);
   const comment = id => config.stimuli.comments.find(c => c.id === id);
+  const manualRead = () => config.environment.completion_mode === 'post_read';
   const ageLabel = minutes => minutes===0?'刚刚':minutes<60?`${minutes}分钟前`:minutes<1440?`${Math.floor(minutes/60)}小时前`:`${Math.floor(minutes/1440)}天前`;
   const names = {weibo:['微博','随时随地，发现新鲜事'], xiaohongshu:['小红书','你的生活兴趣社区'], douyin:['抖音','记录美好生活'], bilibili:['哔哩哔哩','让兴趣，连接彼此'], zhihu:['知乎','有问题，就会有答案']};
-  function effectiveLikes(id) {
-    const pending = saved.events.filter(e => e.type === 'like' && e.target === id);
-    return pending.length ? pending[pending.length-1].liked : !!state.likes[id];
+  const reactionFields = {like:'liked',dislike:'disliked'};
+  const reactionNames = {like:'点赞',dislike:'点踩'};
+  const oppositeReaction = kind => kind === 'like' ? 'dislike' : 'like';
+  const initialCount = (item,kind) => item[kind === 'like' ? 'initial_likes' : 'initial_dislikes'] ?? 0;
+  function effectiveReactions(id) {
+    const reactions = {like:state.likes[id] === true,dislike:state.dislikes?.[id] === true};
+    for (const event of saved.events) {
+      if (event.target !== id || !Object.hasOwn(reactionFields,event.type)) continue;
+      const active = event[reactionFields[event.type]];
+      reactions[event.type] = active;
+      if (active) reactions[oppositeReaction(event.type)] = false;
+    }
+    return reactions;
   }
-  function likeControl(item) {
-    const active = effectiveLikes(item.id);
-    const b = iconButton('like',String(item.initial_likes + Number(active)), () => {
-      emit('like',item.id,{liked:!effectiveLikes(item.id)}); refreshLikes();
-    }, 'like ' + (active ? 'active' : ''));
-    b.dataset.like = item.id; b.setAttribute('aria-label', `点赞 ${item.id}`); b.setAttribute('aria-pressed',String(active));
+  const countLabel = count => count > 0 ? String(count) : '';
+  function updateReactionButton(b,item,active) {
+    const kind = b.dataset.reaction;
+    const count = item.mask_reaction_counts ? '' : countLabel(initialCount(item,kind) + Number(active));
+    b.querySelector('.reaction-count').textContent = count;
+    b.setAttribute('aria-label',`${reactionNames[kind]} ${item.id}${count ? '，'+count : ''}`);
+    b.classList.toggle('active',active);
+    b.setAttribute('aria-pressed',String(active));
+  }
+  function reactionControl(item,kind) {
+    const b = iconButton(kind,'',() => {
+      const active = !effectiveReactions(item.id)[kind];
+      emit(kind,item.id,{[reactionFields[kind]]:active});
+      refreshReactions();
+    },`reaction ${kind}`);
+    b.dataset.reaction = kind;
+    b.dataset.reactionTarget = item.id;
+    const count = b.querySelector('span');
+    count.className = 'reaction-count';
+    if (item.mask_reaction_counts) {
+      count.classList.add('reaction-count-masked');
+      count.setAttribute('aria-hidden','true');
+    }
+    updateReactionButton(b,item,effectiveReactions(item.id)[kind]);
     b.disabled = state.completed; return b;
   }
-  function refreshLikes() {
-    root.querySelectorAll('[data-like]').forEach(b => {
-      const id = b.dataset.like, item = post(id) || comment(id), active = effectiveLikes(id);
-      b.querySelector('span').textContent = String(item.initial_likes + Number(active));
-      b.classList.toggle('active',active); b.setAttribute('aria-pressed',String(active));
+  function refreshReactions() {
+    root.querySelectorAll('button[data-reaction]').forEach(b => {
+      const id = b.dataset.reactionTarget;
+      updateReactionButton(b,post(id) || comment(id),effectiveReactions(id)[b.dataset.reaction]);
     });
+  }
+  function appendReactions(actions,item,showPassive = false) {
+    for (const kind of Object.keys(reactionFields)) {
+      if (config.environment.enabled_actions.includes(kind)) actions.append(reactionControl(item,kind));
+      else if (showPassive && !item.mask_reaction_counts && initialCount(item,kind) > 0) {
+        const badge = el('span','reaction reaction-static');
+        badge.setAttribute('aria-label',`${reactionNames[kind]} ${initialCount(item,kind)}`);
+        badge.append(icon(kind),el('span','reaction-count',String(initialCount(item,kind))));
+        actions.append(badge);
+      }
+    }
   }
   function identity(id, subtitle, openDetail) {
     const profile=config.stimuli.authors.find(a=>a.id===id);
@@ -111,22 +153,27 @@ export default function(component) {
     text.append(sub);row.append(avatar,text);return row;
   }
   function openPost(id) {
-    flushVisibility(); postId = id; view = 'detail'; replyTo = id;
+    flushVisibility(); postId = id; view = 'detail'; replyTargets.delete(id);
     emit('post_open',id); render();
   }
   function toggleComments(id) {
     if(view==='detail'){root.querySelector('.comments-panel').scrollIntoView({block:'start',behavior:'smooth'});return;}
     flushVisibility();
-    if(postId===id){emit('post_leave',id);postId=null;}else{if(postId)emit('post_leave',postId);postId=id;replyTo=id;emit('post_open',id);}
+    if (config.review_only) {
+      if (reviewExpandedPosts.delete(id)) emit('post_leave',id);
+      else {reviewExpandedPosts.add(id);emit('post_open',id);}
+    } else if(postId===id){emit('post_leave',id);postId=null;}
+    else {if(postId)emit('post_leave',postId);postId=id;replyTargets.delete(id);emit('post_open',id);}
     render();
   }
-  function openEditor(id) {
-    replyTo = id;
-    const editor = root.querySelector('.composer');
+  const replyLabel = id => id ? `回复 @${author(comment(id).author_id)}` : '发表你的看法';
+  function openEditor(item, panel) {
+    replyTargets.set(item.post_id,item.id);
+    const editor = panel.querySelector('.composer');
     editor.hidden = false;
-    root.querySelector('.reply-label').textContent = id === postId ? '发表你的看法' : `回复 @${author(comment(id).author_id)}`;
+    editor.querySelector('.reply-label').textContent = replyLabel(item.id);
     editor.scrollIntoView({block:'center',behavior:'smooth'});
-    root.querySelector('textarea').focus({preventScroll:true});
+    editor.querySelector('textarea').focus({preventScroll:true});
   }
   function postCard(item, detail) {
     const card = el('article','post-card');
@@ -141,10 +188,20 @@ export default function(component) {
     const actions = el('div','post-actions');
     const share=el('span','inactive-action');share.title='本实验未启用转发';share.append(icon('share'),el('span','','转发'));actions.append(share);
     const count=config.stimuli.comments.filter(c=>c.post_id===item.id).length;
-    const comments=iconButton('comment',String(count),()=>toggleComments(item.id),'comment-toggle');comments.setAttribute('aria-label',`评论 ${count}`);comments.setAttribute('aria-expanded',String(detail||postId===item.id));actions.append(comments);
-    if(config.environment.enabled_actions.includes('like'))actions.append(likeControl(item));
+    const expanded = detail || (config.review_only ? reviewExpandedPosts.has(item.id) : postId === item.id);
+    const comments=iconButton('comment',String(count),()=>toggleComments(item.id),'comment-toggle');comments.setAttribute('aria-label',`评论 ${count}`);comments.setAttribute('aria-expanded',String(expanded));actions.append(comments);
+    appendReactions(actions,item);
     card.append(actions);
-    if(!detail&&postId===item.id)card.append(commentPanel());
+    if(!detail&&expanded)card.append(commentPanel(item.id));
+    if (manualRead()) {
+      const label = el('label','post-read');
+      const checkbox = el('input');
+      checkbox.type = 'checkbox';
+      checkbox.dataset.postRead = item.id;
+      checkbox.onchange = () => emit('post_read',item.id,{checked:checkbox.checked});
+      label.append(checkbox,el('span','','已阅读'));
+      card.append(label);
+    }
     return card;
   }
   function renderComment(row, depth, parentId) {
@@ -157,41 +214,42 @@ export default function(component) {
     if (parentId) text.append(el('span','reply-ref',`回复 @${author(comment(parentId).author_id)}：`));
     text.append(document.createTextNode(item.text)); node.append(text);
     const actions = el('div','comment-actions');
-    if (config.environment.enabled_actions.includes('like')) actions.append(likeControl(item));
-    if (config.environment.enabled_actions.includes('reply')) actions.append(button('回复',()=>openEditor(item.id)));
-    node.append(actions);
+    appendReactions(actions,item,true);
+    if (config.environment.enabled_actions.includes('reply')) actions.append(button('回复',()=>openEditor(item,node.closest('.comments-panel'))));
+    if (actions.childElementCount) node.append(actions);
     return node;
   }
-  function commentPanel() {
+  function commentPanel(id) {
     const panel = el('section','comments-panel'); panel.setAttribute('aria-label','评论区');
-    const heading = el('div','comments-heading'); heading.append(el('h3','','全部评论'),el('span','muted','10')); panel.append(heading);
-    const walk = (parentId,depth) => condition.comment_layout
-      .filter(r=>r.parent_id === parentId && comment(r.comment_id).post_id === postId)
+    const rows = condition.comment_layout.filter(row => comment(row.comment_id).post_id === id);
+    const heading = el('div','comments-heading'); heading.append(el('h3','','全部评论'),el('span','muted',String(rows.length))); panel.append(heading);
+    const walk = (parentId,depth) => rows
+      .filter(r=>r.parent_id === parentId)
       .sort((a,b)=>a.sibling_order-b.sibling_order).forEach(row=>{
         panel.append(renderComment(row,depth,parentId)); walk(row.comment_id,depth+1);
       });
     walk(null,0);
     const mine = el('section','my-comments'); mine.append(el('h3','','我的评论'));
-    state.comments.filter(c=>c.post_id === postId).forEach(c=>{
+    state.comments.filter(c=>c.post_id === id).forEach(c=>{
       const line = el('article','own-comment');
-      line.append(el('small','muted',c.target === postId ? '我 · 评论帖子' : `我 · 回复 @${author(comment(c.target).author_id)}`),el('p','',c.text)); mine.append(line);
+      line.append(el('small','muted',c.target === id ? '我 · 评论帖子' : `我 · 回复 @${author(comment(c.target).author_id)}`),el('p','',c.text)); mine.append(line);
     });
     if (mine.children.length > 1) panel.append(mine);
     if (config.environment.enabled_actions.some(a=>['comment','reply'].includes(a))) {
       const form = el('form','composer');
-      form.append(el('label','reply-label','发表你的看法'));
-      const textarea = el('textarea'); textarea.placeholder = '发布你的评论'; textarea.value = draft;
+      form.append(el('label','reply-label',replyLabel(replyTargets.get(id))));
+      const textarea = el('textarea'); textarea.placeholder = '发布你的评论'; textarea.value = drafts.get(id) || '';
       textarea.setAttribute('aria-label','评论内容'); textarea.maxLength = config.environment.max_comment_characters;
-      textarea.oninput = ()=> { draft = textarea.value; };
+      textarea.oninput = ()=> { drafts.set(id,textarea.value); };
       const tools = el('div','composer-tools');
-      tools.append(el('small','muted',`最多 ${textarea.maxLength} 字`),button('取消',()=>{draft=textarea.value;form.hidden=true;}));
+      tools.append(el('small','muted',`最多 ${textarea.maxLength} 字`),button('取消',()=>{form.hidden=true;}));
       const submit = el('button','primary','发布'); submit.type='submit'; tools.append(submit);
       form.onsubmit = e=>{
         e.preventDefault(); const text=textarea.value.trim();
         if (!text || Array.from(text).length > config.environment.max_comment_characters) {textarea.setCustomValidity('请输入有效的评论内容');textarea.reportValidity();textarea.setCustomValidity('');return;}
-        const target=replyTo || postId;
-        if (!config.environment.enabled_actions.includes(target === postId ? 'comment' : 'reply')) return;
-        emit('comment',target,{text}); draft='';textarea.value=''; submit.disabled=true;
+        const target=replyTargets.get(id) || id;
+        if (!config.environment.enabled_actions.includes(target === id ? 'comment' : 'reply')) return;
+        emit('comment',target,{text}); drafts.delete(id);textarea.value=''; submit.disabled=true;
       };
       form.append(textarea,tools); panel.insertBefore(form,heading);
     }
@@ -200,10 +258,27 @@ export default function(component) {
   function updateStatus() {
     const status=root.querySelector('.save-status');
     if (status) status.textContent = saved.events.length ? `正在保存 ${saved.events.length} 项操作…` : '所有操作已保存';
+    const manual = manualRead();
+    const ready = manual ? condition.post_order.every(id => state.read_posts?.[id] === true)
+      : condition.required_exposure_comment_ids.every(id => state.exposed.includes(id));
     const finish=root.querySelector('[data-finish]');
-    if(finish) finish.disabled=state.completed || saved.events.length>0 || !condition.required_exposure_comment_ids.every(id=>state.exposed.includes(id));
+    if(finish) finish.disabled=state.completed || saved.events.length>0 || !ready;
     const hint=root.querySelector('.finish-hint');
-    if(hint) hint.textContent=condition.required_exposure_comment_ids.every(id=>state.exposed.includes(id)) ? '浏览要求已完成，你也可以继续参与讨论。' : '请继续浏览评论后完成本环节。';
+    if (hint) {
+      if (ready) hint.textContent = '浏览要求已完成，你也可以继续参与讨论。';
+      else if (manual) hint.textContent = '请勾选每张帖子卡片右下角的“已阅读”。';
+      else hint.textContent = '请继续浏览评论后完成本环节。';
+    }
+    if (manual) {
+      const pending = new Map();
+      for (const event of saved.events) if (event.type === 'post_read') pending.set(event.target,event.checked);
+      const finishing = state.completed || saved.events.some(event => event.type === 'complete');
+      root.querySelectorAll('input[data-post-read]').forEach(checkbox => {
+        const id = checkbox.dataset.postRead;
+        checkbox.checked = pending.get(id) ?? (state.read_posts?.[id] === true);
+        checkbox.disabled = finishing;
+      });
+    }
   }
   function questionnaire(stage) {
     const wrap=el('section','questionnaire'),form=el('form','survey-form');
@@ -245,7 +320,15 @@ export default function(component) {
     root.replaceChildren(); root.className=`social theme-${config.environment.theme}`;
     if(['pre','post'].includes(state.phase)){questionnaire(state.phase);return;}
     if(state.phase==='submitted') {
-      const done=el('section','complete-card');done.append(el('h1','','提交成功'),el('p','','感谢参与，本次回答已保存。'),el('p','',`完成码：${state.completion_code}`));root.append(done);return;
+      const done=el('section','complete-card');
+      done.append(el('h1','','提交成功'),el('p','','感谢参与，本次回答已保存。'),el('p','',`完成码：${state.completion_code}`));
+      if (server.completion_data) {
+        done.classList.add('complete-card-data');
+        const summary = el('pre','completion-json',JSON.stringify(server.completion_data,null,2));
+        summary.setAttribute('aria-label','本次参与数据 JSON');
+        done.append(el('h2','','本次参与数据'),summary);
+      }
+      root.append(done);return;
     }
     if (state.completed) {
       const done=el('section','complete-card'),check=el('div','complete-icon');check.append(icon('check'));done.append(check,el('h1','','本环节已完成'),el('p','','所有操作已保存。'),el('small','muted','正式问卷返回地址尚未接入'));
@@ -265,7 +348,7 @@ export default function(component) {
     if(view==='feed') {
       condition.post_order.forEach(id=>main.append(postCard(post(id),false)));
     } else {
-      const discussion=el('div','discussion');discussion.append(postCard(post(postId),true),commentPanel());main.append(discussion);
+      const discussion=el('div','discussion');discussion.append(postCard(post(postId),true),commentPanel(postId));main.append(discussion);
     }
     const foot=el('footer','experiment-footer');
     const info=el('div');info.append(el('strong','','浏览与互动'),el('p','finish-hint'),el('small','save-status'));foot.append(info);
@@ -279,7 +362,7 @@ export default function(component) {
     seen.clear();
   }
   function measure() {
-    if(!state || state.completed || state.phase&&state.phase!=='interaction' || saved.events.some(e=>e.type==='complete') || !postId) return;
+    if(!state || manualRead() || state.completed || state.phase&&state.phase!=='interaction' || saved.events.some(e=>e.type==='complete') || !(postId || reviewExpandedPosts.size)) return;
     const now=performance.now(), exposure=config.environment.exposure;
     for(const id of condition.required_exposure_comment_ids) {
       const node=Array.from(root.querySelectorAll('[data-body]')).find(n=>n.dataset.body===id);
@@ -309,9 +392,13 @@ export default function(component) {
     config=server.config;condition=config.conditions[0];
     const ack=new Set([...(server.ack || []),...(server.rejected || [])]);saved.events=saved.events.filter(e=>!ack.has(e.event_id));persist();
     if(!server.state) {root.textContent='正在连接实验环境…';transmit();return;}
-    const first=!state;state=server.state;
+    const first=!state, previousPhase=state?.phase;state=server.state;
+    if (first && config.review_only) condition.post_order.forEach(id=>reviewExpandedPosts.add(id));
     const key=JSON.stringify([config,state.comments,state.completed,state.phase,server.error]);
-    if(key!==renderKey){renderKey=key;render();} else {refreshLikes();updateStatus();}
+    if(key!==renderKey){
+      renderKey=key;render();
+      if (previousPhase && previousPhase !== state.phase) root.scrollIntoView({block:'start'});
+    } else {refreshReactions();updateStatus();}
     if(first) emit('session_start');
   }};
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState!=='visible')flushVisibility();});

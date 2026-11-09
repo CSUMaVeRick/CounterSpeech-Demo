@@ -1,13 +1,16 @@
 {
   "schema_version": "0.1",
-  "experiment_id": "counter_speech_pilot",
-  "config_version": "collaborator-demo-20261025-v1",
+  "experiment_id": "counter_speech_marriage_parenthood",
+  "config_version": "harmful-speech-review-20261109-v7",
+  "review_only": true,
   "environment": {
     "theme": "weibo",
+    "completion_mode": "post_read",
+    "show_completion_data": true,
+    "mask_background_reaction_counts": true,
     "enabled_actions": [
       "like",
-      "comment",
-      "reply"
+      "dislike"
     ],
     "max_comment_characters": 500,
     "exposure": {
@@ -20,561 +23,155 @@
   "stimuli": {
     "authors": [
       {
-        "id": "u01",
-        "display_name": "城市日常",
-        "avatar": "assets/avatars/city-192.jpg",
-        "verified": true,
-        "verified_text": "生活博主（模拟）",
-        "bio": "记录街头巷尾的小事。",
-        "location": "上海",
-        "followers": 2386,
-        "following": 165
+        "id": "post_author",
+        "display_name": "日常话题"
       },
       {
-        "id": "u02",
-        "display_name": "路边观察",
-        "avatar": "assets/avatars/cat-192.jpg",
-        "verified": false,
-        "verified_text": "",
-        "bio": "",
-        "location": "江苏",
-        "followers": 83,
-        "following": 219
+        "id": "comment_author",
+        "display_name": "路过聊两句"
       },
       {
-        "id": "u03",
-        "display_name": "慢慢说",
-        "avatar": "assets/avatars/dog-192.jpg",
-        "verified": false,
-        "verified_text": "",
-        "bio": "有空就来看看。",
-        "location": "浙江",
-        "followers": 126,
-        "following": 307
-      },
-      {
-        "id": "u04",
-        "display_name": "普通路人",
-        "avatar": "assets/avatars/mountain-192.jpg",
-        "verified": false,
-        "verified_text": "",
-        "bio": "",
-        "location": "上海",
-        "followers": 42,
-        "following": 98
-      },
-      {
-        "id": "u05",
-        "display_name": "一起生活",
-        "avatar": "assets/avatars/plant-192.jpg",
-        "verified": false,
-        "verified_text": "",
-        "bio": "分享日常，偶尔聊天。",
-        "location": "广东",
-        "followers": 351,
-        "following": 186
-      },
-      {
-        "id": "u06",
-        "display_name": "你好我是用户",
-        "avatar": "assets/avatars/city-192.jpg",
-        "verified": true,
-        "verified_text": "",
-        "bio": "你好呀",
-        "location": "province",
-        "followers": 520,
-        "following": 300,
-        "location_mode": "answer"
+        "id": "counter_author",
+        "display_name": "看完想说"
       }
     ],
     "posts": [
       {
-        "id": "p01",
-        "author_id": "u01",
-        "text": "最近有不少外国人来{展示地名}工作和旅游，街区也有了一些新变化。大家怎么看？",
-        "display_time": "今天 10:30",
+        "id": "marriage_post",
+        "author_id": "post_author",
+        "text": "最近和朋友聊起结婚这件事。大家家里一般会怎么聊这个话题？",
+        "display_time": "1 小时前",
         "source": "微博网页版",
-        "initial_likes": 128,
-        "media": [
+        "initial_likes": 0,
+        "age_minutes": 60,
+        "comments": [
           {
-            "src": "assets/shanghai-street.jpg",
-            "alt": "上海街边的梧桐树和停放的共享单车"
+            "id": "marriage_harmful",
+            "author_id": "comment_author",
+            "text": "女儿结不结婚，本来就该父母说了算。养她这么大，这事轮不到她自己定。",
+            "initial_likes": 0,
+            "research_role": "harmful_speech",
+            "relative_time_minutes": 5,
+            "replies": [
+              {
+                "id": "marriage_counter",
+                "author_id": "counter_author",
+                "research_role": "counter_speech",
+                "relative_time_minutes": 8,
+                "initial_likes": 0,
+                "initial_dislikes": 0,
+                "text_by_strategy": {
+                  "fact": "《民法典》第1046条规定，结婚得双方完全自愿，任何人都不能干涉。父母也不能替女儿做这个决定。",
+                  "empathy": "想想她听到家里人说“轮不到你自己定”是什么感受。婚姻是她要过的日子，至少该听听她自己愿不愿意。",
+                  "direct": "你这话真够蛮横的。把女儿养大就能替她决定跟谁过日子？这么爱替别人做主，先管好你自己吧。"
+                },
+                "fact_source": "https://www.stats.gov.cn/gk/tjfg/xgfxfg/202503/t20250312_1958939.html"
+              }
+            ]
           }
-        ],
-        "age_minutes": 60
+        ]
       },
       {
-        "id": "p02",
-        "author_id": "u06",
-        "text": "{展示地名}有没有人管了？怎么那么多老外？这还是中国吗？",
-        "display_time": "今天 8:20",
+        "id": "parenthood_post",
+        "author_id": "post_author",
+        "text": "看到有人聊结婚以后要不要孩子。大家平时会怎么聊这个问题？",
+        "display_time": "1 小时前",
         "source": "微博网页版",
-        "initial_likes": 32,
-        "media": [
+        "initial_likes": 0,
+        "age_minutes": 60,
+        "comments": [
           {
-            "src": "assets/shanghai-street.jpg",
-            "alt": "上海街边的梧桐树和停放的共享单车"
+            "id": "parenthood_harmful",
+            "author_id": "comment_author",
+            "text": "女人结了婚就该生孩子。婆家都想要，她还说自己不愿意，她哪有资格说不？",
+            "initial_likes": 0,
+            "research_role": "harmful_speech",
+            "relative_time_minutes": 5,
+            "replies": [
+              {
+                "id": "parenthood_counter",
+                "author_id": "counter_author",
+                "research_role": "counter_speech",
+                "relative_time_minutes": 8,
+                "initial_likes": 0,
+                "initial_dislikes": 0,
+                "text_by_strategy": {
+                  "fact": "《妇女权益保障法》第32条规定，女性有不生孩子的自由。结了婚也一样，婆家想要孩子并不能替她决定。",
+                  "empathy": "想想她已经说了不愿意，还被一家人追着催，得有多委屈。怀孕和生孩子都要她亲身经历，听听她自己的想法吧。",
+                  "direct": "你这话真够自私的。怀孕生孩子的又不是你，你倒挺会替别人安排。人家愿不愿意，轮不到你指手画脚。"
+                },
+                "fact_source": "https://gzca.miit.gov.cn/zwgk/zcwj/zcfg/art/2022/art_47b4c78a8f52484587e1b198c52fa909.html"
+              }
+            ]
           }
-        ],
-        "age_minutes": 100
+        ]
+      },
+      {
+        "id": "hiring_post",
+        "author_id": "post_author",
+        "text": "最近看到有人讨论面试时会被问到婚育计划。大家有过类似的经历吗？",
+        "display_time": "1 小时前",
+        "source": "微博网页版",
+        "initial_likes": 0,
+        "age_minutes": 60,
+        "comments": [
+          {
+            "id": "hiring_harmful",
+            "author_id": "comment_author",
+            "text": "公司招女的就该先问生不生孩子。打算生的直接刷掉，招进来就是给公司添麻烦。",
+            "initial_likes": 0,
+            "research_role": "harmful_speech",
+            "relative_time_minutes": 5,
+            "replies": [
+              {
+                "id": "hiring_counter",
+                "author_id": "counter_author",
+                "research_role": "counter_speech",
+                "relative_time_minutes": 8,
+                "initial_likes": 0,
+                "initial_dislikes": 0,
+                "text_by_strategy": {
+                  "fact": "按《妇女权益保障法》第43条，一般招聘不能额外问女求职者的婚育情况，也不能把婚育状况当录用条件。",
+                  "empathy": "想想她认真准备面试，却连能力都没机会展示，就因为想生孩子被刷掉。换谁遇到这种事，都会觉得委屈吧。",
+                  "direct": "你这招人标准也太荒唐了。连人家会不会干活都不看，就急着按生不生孩子刷人。真会拿偏见当本事。"
+                },
+                "fact_source": "https://gzca.miit.gov.cn/zwgk/zcwj/zcfg/art/2022/art_47b4c78a8f52484587e1b198c52fa909.html"
+              }
+            ]
+          }
+        ]
       }
     ],
-    "comments": [
-      {
-        "id": "c01",
-        "post_id": "p01",
-        "author_id": "u02",
-        "text": "我不太赞成更多外国人搬来这里，总觉得会带来麻烦。",
-        "initial_likes": 36,
-        "research_role": "exclusionary_placeholder",
-        "relative_time_minutes": 2
-      },
-      {
-        "id": "c02",
-        "post_id": "p01",
-        "author_id": "u04",
-        "text": "你说的麻烦具体是什么？",
-        "initial_likes": 8,
-        "research_role": "neutral",
-        "relative_time_minutes": 4
-      },
-      {
-        "id": "c03",
-        "post_id": "p01",
-        "author_id": "u02",
-        "text": "主要还是不熟悉，担心生活习惯合不来。",
-        "initial_likes": 12,
-        "research_role": "concern",
-        "relative_time_minutes": 6
-      },
-      {
-        "id": "c04",
-        "post_id": "p01",
-        "author_id": "u03",
-        "text": "生活习惯不同的情况可以具体讨论。",
-        "initial_likes": 5,
-        "research_role": "neutral",
-        "relative_time_minutes": 8
-      },
-      {
-        "id": "c05",
-        "post_id": "p01",
-        "author_id": "u04",
-        "text": "附近确实新开了几家店。",
-        "initial_likes": 9,
-        "research_role": "neutral",
-        "relative_time_minutes": 10
-      },
-      {
-        "id": "c06",
-        "post_id": "p01",
-        "author_id": "u02",
-        "text": "我还是觉得应该少让外国人来，省得出现问题。",
-        "initial_likes": 24,
-        "research_role": "exclusionary_placeholder",
-        "relative_time_minutes": 12
-      },
-      {
-        "id": "c07",
-        "post_id": "p01",
-        "author_id": "u05",
-        "text": "担心社区变化可以理解，但仅凭外国人身份就排斥所有人，对认真工作和遵守规则的人并不公平。遇到具体问题，按同样的规则处理会更合适。",
-        "initial_likes": 18,
-        "research_role": "counter_speech",
-        "relative_time_minutes": 14
-      },
-      {
-        "id": "c08",
-        "post_id": "p01",
-        "author_id": "u03",
-        "text": "可以先说清楚大家遇到了哪些具体情况。",
-        "initial_likes": 6,
-        "research_role": "neutral",
-        "relative_time_minutes": 16
-      },
-      {
-        "id": "c09",
-        "post_id": "p01",
-        "author_id": "u04",
-        "text": "想看看住在附近的人怎么说。",
-        "initial_likes": 4,
-        "research_role": "neutral",
-        "relative_time_minutes": 18
-      },
-      {
-        "id": "c10",
-        "post_id": "p01",
-        "author_id": "u03",
-        "text": "社区信息如果能更清楚一些就好了。",
-        "initial_likes": 7,
-        "research_role": "neutral",
-        "relative_time_minutes": 20
-      },
-      {
-        "id": "p02_c01",
-        "post_id": "p02",
-        "author_id": "u03",
-        "text": "我不太希望这里越来越多外国人，生活习惯不同，怕以后更麻烦。",
-        "initial_likes": 20,
-        "research_role": "exclusionary_placeholder",
-        "relative_time_minutes": 11
-      },
-      {
-        "id": "p02_c02",
-        "post_id": "p02",
-        "author_id": "u02",
-        "text": "具体出了什么问题？还是只是看到陌生人不太习惯？",
-        "initial_likes": 8,
-        "research_role": "neutral",
-        "relative_time_minutes": 27
-      },
-      {
-        "id": "p02_c03",
-        "post_id": "p02",
-        "author_id": "u03",
-        "text": "主要是听不懂他们聊天，有时候会觉得有点距离感。",
-        "initial_likes": 58,
-        "research_role": "concern",
-        "relative_time_minutes": 30
-      },
-      {
-        "id": "p02_c04",
-        "post_id": "p02",
-        "author_id": "u04",
-        "text": "如果有具体影响邻里的行为，还是应该把情况说清楚。",
-        "initial_likes": 11,
-        "research_role": "neutral",
-        "relative_time_minutes": 50
-      },
-      {
-        "id": "p02_c05",
-        "post_id": "p02",
-        "author_id": "u03",
-        "text": "这几年工作和旅游来的人确实多了。",
-        "initial_likes": 12,
-        "research_role": "neutral",
-        "relative_time_minutes": 54
-      },
-      {
-        "id": "p02_c06",
-        "post_id": "p02",
-        "author_id": "u04",
-        "text": "还是少来点吧，感觉原来的生活环境都变了。",
-        "initial_likes": 7,
-        "research_role": "exclusionary_placeholder",
-        "relative_time_minutes": 56
-      },
-      {
-        "id": "p02_c07",
-        "post_id": "p02",
-        "author_id": "u05",
-        "text": "对社区变化有顾虑可以理解，但不能仅凭国籍就把所有人排除在外。许多人也在认真工作、遵守规则；遇到具体问题，按同样的规则处理会更公平。",
-        "initial_likes": 9,
-        "research_role": "counter_speech",
-        "relative_time_minutes": 58
-      },
-      {
-        "id": "p02_c08",
-        "post_id": "p02",
-        "author_id": "u01",
-        "text": "我遇到过来问路的游客，交流时倒没有什么不愉快。",
-        "initial_likes": 6,
-        "research_role": "neutral",
-        "relative_time_minutes": 75
-      },
-      {
-        "id": "p02_c09",
-        "post_id": "p02",
-        "author_id": "u03",
-        "text": "要不要先了解一下他们是来旅游还是在这里工作？",
-        "initial_likes": 55,
-        "research_role": "neutral",
-        "relative_time_minutes": 88
-      },
-      {
-        "id": "p02_c10",
-        "post_id": "p02",
-        "author_id": "u04",
-        "text": "想听听住在附近的人有没有具体经历。",
-        "initial_likes": 29,
-        "research_role": "neutral",
-        "relative_time_minutes": 94
-      }
-    ],
-    "material_status": "所有文本仅用于讨论界面和树结构，未经正式刺激材料预测试。"
+    "material_status": "三套婚育议题材料，每条有害评论配三版反驳草案，供审阅与预测试。"
+  },
+  "counter_feedback_levels": {
+    "none": {"label": "无反馈", "initial_likes": 0, "initial_dislikes": 0},
+    "likes": {"label": "很多赞", "initial_likes": 72, "initial_dislikes": 0},
+    "mixed": {"label": "很多赞和踩", "initial_likes": 72, "initial_dislikes": 64}
   },
   "conditions": [
-    {
-      "id": "local_province",
-      "post_order": [
-        "p02",
-        "p01"
-      ],
-      "comment_layout": [
-        {
-          "comment_id": "c01",
-          "parent_id": null,
-          "sibling_order": 1
-        },
-        {
-          "comment_id": "c02",
-          "parent_id": "c01",
-          "sibling_order": 1
-        },
-        {
-          "comment_id": "c03",
-          "parent_id": "c01",
-          "sibling_order": 2
-        },
-        {
-          "comment_id": "c04",
-          "parent_id": "c03",
-          "sibling_order": 1
-        },
-        {
-          "comment_id": "c05",
-          "parent_id": null,
-          "sibling_order": 2
-        },
-        {
-          "comment_id": "c06",
-          "parent_id": null,
-          "sibling_order": 3
-        },
-        {
-          "comment_id": "c07",
-          "parent_id": "c06",
-          "sibling_order": 1
-        },
-        {
-          "comment_id": "c08",
-          "parent_id": "c06",
-          "sibling_order": 2
-        },
-        {
-          "comment_id": "c09",
-          "parent_id": null,
-          "sibling_order": 4
-        },
-        {
-          "comment_id": "c10",
-          "parent_id": null,
-          "sibling_order": 5
-        },
-        {
-          "comment_id": "p02_c01",
-          "parent_id": null,
-          "sibling_order": 9
-        },
-        {
-          "comment_id": "p02_c02",
-          "parent_id": null,
-          "sibling_order": 5
-        },
-        {
-          "comment_id": "p02_c03",
-          "parent_id": null,
-          "sibling_order": 6
-        },
-        {
-          "comment_id": "p02_c04",
-          "parent_id": null,
-          "sibling_order": 4
-        },
-        {
-          "comment_id": "p02_c05",
-          "parent_id": null,
-          "sibling_order": 2
-        },
-        {
-          "comment_id": "p02_c06",
-          "parent_id": null,
-          "sibling_order": 7
-        },
-        {
-          "comment_id": "p02_c07",
-          "parent_id": null,
-          "sibling_order": 3
-        },
-        {
-          "comment_id": "p02_c08",
-          "parent_id": null,
-          "sibling_order": 10
-        },
-        {
-          "comment_id": "p02_c09",
-          "parent_id": null,
-          "sibling_order": 8
-        },
-        {
-          "comment_id": "p02_c10",
-          "parent_id": null,
-          "sibling_order": 1
-        }
-      ],
-      "required_exposure_comment_ids": [
-        "c07",
-        "p02_c07"
-      ],
-      "label": "本省",
-      "variable_rules": {
-        "展示地名": {
-          "kind": "answer",
-          "value": "province"
-        }
-      }
-    },
-    {
-      "id": "other_province",
-      "post_order": [
-        "p02",
-        "p01"
-      ],
-      "comment_layout": [
-        {
-          "comment_id": "c01",
-          "parent_id": null,
-          "sibling_order": 1
-        },
-        {
-          "comment_id": "c02",
-          "parent_id": "c01",
-          "sibling_order": 1
-        },
-        {
-          "comment_id": "c03",
-          "parent_id": "c01",
-          "sibling_order": 2
-        },
-        {
-          "comment_id": "c04",
-          "parent_id": "c03",
-          "sibling_order": 1
-        },
-        {
-          "comment_id": "c05",
-          "parent_id": null,
-          "sibling_order": 2
-        },
-        {
-          "comment_id": "c06",
-          "parent_id": null,
-          "sibling_order": 3
-        },
-        {
-          "comment_id": "c07",
-          "parent_id": "c06",
-          "sibling_order": 1
-        },
-        {
-          "comment_id": "c08",
-          "parent_id": "c06",
-          "sibling_order": 2
-        },
-        {
-          "comment_id": "c09",
-          "parent_id": null,
-          "sibling_order": 4
-        },
-        {
-          "comment_id": "c10",
-          "parent_id": null,
-          "sibling_order": 5
-        },
-        {
-          "comment_id": "p02_c01",
-          "parent_id": null,
-          "sibling_order": 9
-        },
-        {
-          "comment_id": "p02_c02",
-          "parent_id": null,
-          "sibling_order": 5
-        },
-        {
-          "comment_id": "p02_c03",
-          "parent_id": null,
-          "sibling_order": 6
-        },
-        {
-          "comment_id": "p02_c04",
-          "parent_id": null,
-          "sibling_order": 4
-        },
-        {
-          "comment_id": "p02_c05",
-          "parent_id": null,
-          "sibling_order": 2
-        },
-        {
-          "comment_id": "p02_c06",
-          "parent_id": null,
-          "sibling_order": 7
-        },
-        {
-          "comment_id": "p02_c07",
-          "parent_id": null,
-          "sibling_order": 3
-        },
-        {
-          "comment_id": "p02_c08",
-          "parent_id": null,
-          "sibling_order": 10
-        },
-        {
-          "comment_id": "p02_c09",
-          "parent_id": null,
-          "sibling_order": 8
-        },
-        {
-          "comment_id": "p02_c10",
-          "parent_id": null,
-          "sibling_order": 1
-        }
-      ],
-      "required_exposure_comment_ids": [
-        "c07",
-        "p02_c07"
-      ],
-      "label": "其他省",
-      "variable_rules": {
-        "展示地名": {
-          "kind": "other_province",
-          "value": "31,44"
-        }
-      }
-    }
+    {"id": "review_fact", "label": "事实反驳", "counter_strategy": "fact", "counter_feedback": "none"},
+    {"id": "review_fact_likes", "label": "事实反驳", "counter_strategy": "fact", "counter_feedback": "likes"},
+    {"id": "review_fact_mixed", "label": "事实反驳", "counter_strategy": "fact", "counter_feedback": "mixed"},
+    {"id": "review_empathy", "label": "同理心", "counter_strategy": "empathy", "counter_feedback": "none"},
+    {"id": "review_empathy_likes", "label": "同理心", "counter_strategy": "empathy", "counter_feedback": "likes"},
+    {"id": "review_empathy_mixed", "label": "同理心", "counter_strategy": "empathy", "counter_feedback": "mixed"},
+    {"id": "review_direct", "label": "直接回骂", "counter_strategy": "direct", "counter_feedback": "none"},
+    {"id": "review_direct_likes", "label": "直接回骂", "counter_strategy": "direct", "counter_feedback": "likes"},
+    {"id": "review_direct_mixed", "label": "直接回骂", "counter_strategy": "direct", "counter_feedback": "mixed"}
   ],
-  "variables": [
-    {
-      "name": "展示地名",
-      "label": "帖子中的地理位置"
-    }
-  ],
+  "variables": [],
   "flow": {
     "pre": {
       "block_order": "fixed",
       "blocks": [
         {
-          "id": "background",
+          "id": "pre_questions",
           "question_order": "fixed",
           "questions": [
-            {
-              "id": "residence",
-              "label": "你目前居住在哪个省、市、区县？",
-              "type": "location",
-              "required": true
-            },
-            {
-              "id": "pre_q01",
-              "label": "你在生活中见过外国人吗？",
-              "type": "single_choice",
-              "required": true,
-              "options": [
-                "见过",
-                "没见过"
-              ]
-            }
+            {"id": "pre_1", "label": "前测1", "type": "single_choice", "required": true, "options": ["非常不同意", "不同意", "中立", "同意", "非常同意"]},
+            {"id": "pre_2", "label": "前测2", "type": "single_choice", "required": true, "options": ["非常不同意", "不同意", "中立", "同意", "非常同意"]},
+            {"id": "pre_3", "label": "前测3", "type": "single_choice", "required": true, "options": ["非常不同意", "不同意", "中立", "同意", "非常同意"]}
           ]
         }
       ]
@@ -583,16 +180,12 @@
       "block_order": "fixed",
       "blocks": [
         {
-          "id": "feedback",
+          "id": "post_questions",
           "question_order": "fixed",
           "questions": [
-            {
-              "id": "impression",
-              "label": "看完这条帖子和评论，你有什么想法？（流程演示题）",
-              "type": "text",
-              "required": true,
-              "max_length": 1000
-            }
+            {"id": "post_1", "label": "后测1", "type": "single_choice", "required": true, "options": ["非常不同意", "不同意", "中立", "同意", "非常同意"]},
+            {"id": "post_2", "label": "后测2", "type": "single_choice", "required": true, "options": ["非常不同意", "不同意", "中立", "同意", "非常同意"]},
+            {"id": "post_3", "label": "后测3", "type": "single_choice", "required": true, "options": ["非常不同意", "不同意", "中立", "同意", "非常同意"]}
           ]
         }
       ]
